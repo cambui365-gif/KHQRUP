@@ -6,7 +6,10 @@ import { HomeView } from './views/HomeView';
 import { KHQRView } from './views/KHQRView';
 import { EarnView } from './views/EarnView';
 import { HistoryView } from './views/HistoryView';
+import { AdminDashboard } from './views/admin/AdminDashboard';
+import { AdminLogin } from './views/admin/AdminLogin';
 import { View } from './types';
+import { getToken } from './services/api';
 
 const AccessDenied: React.FC = () => (
   <div className="min-h-screen bg-dark-900 flex flex-col items-center justify-center p-8 text-center">
@@ -17,10 +20,7 @@ const AccessDenied: React.FC = () => (
     <p className="text-slate-400 mb-8 max-w-xs">
       This app only works inside Telegram for security.
     </p>
-    <a
-      href="https://t.me/"
-      className="bg-primary-600 hover:bg-primary-500 text-white px-6 py-3 rounded-xl font-bold transition-all w-full max-w-xs text-center"
-    >
+    <a href="https://t.me/" className="bg-primary-600 hover:bg-primary-500 text-white px-6 py-3 rounded-xl font-bold transition-all w-full max-w-xs text-center">
       Open Telegram
     </a>
   </div>
@@ -59,22 +59,27 @@ const UserApp: React.FC = () => {
   );
 };
 
+const AdminApp: React.FC = () => {
+  const [loggedIn, setLoggedIn] = useState(!!getToken());
+
+  if (!loggedIn) {
+    return <AdminLogin onLogin={() => setLoggedIn(true)} />;
+  }
+
+  return <AdminDashboard onLogout={() => setLoggedIn(false)} />;
+};
+
 const AppRouter: React.FC = () => {
   const { isLoading, isAuthenticated } = useAuth();
+
+  // Check for admin route
   const isAdmin = new URLSearchParams(window.location.search).get('mode') === 'admin' ||
                   window.location.pathname === '/admin';
 
+  if (isAdmin) return <AdminApp />;
+
   if (isLoading) return <Loading />;
 
-  // Admin route - TODO: implement admin dashboard
-  if (isAdmin) {
-    return <div className="min-h-screen bg-dark-900 text-white p-8">
-      <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-      <p className="text-slate-400 mt-2">Coming soon...</p>
-    </div>;
-  }
-
-  // Check Telegram environment
   const isTelegram = !!window.Telegram?.WebApp?.initData;
   if (!isTelegram) return <AccessDenied />;
   if (!isAuthenticated) return <Loading />;
