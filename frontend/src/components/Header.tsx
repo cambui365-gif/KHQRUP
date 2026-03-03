@@ -18,7 +18,6 @@ export const Header: React.FC<HeaderProps> = ({ lang, setLang }) => {
             <IconShield className="w-full h-full drop-shadow-lg filter" />
             <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0f172a] animate-pulse"></div>
         </div>
-        
         <div className="flex flex-col justify-center">
           <h1 className="text-xl font-black text-white tracking-tight leading-none italic" style={{ fontFamily: 'Inter, sans-serif' }}>
             365
@@ -30,7 +29,7 @@ export const Header: React.FC<HeaderProps> = ({ lang, setLang }) => {
         </div>
       </div>
 
-      {/* LANGUAGE SWITCHER (FLAGS) */}
+      {/* LANGUAGE SWITCHER */}
       <div className="flex items-center gap-2">
         <div className="flex bg-slate-800/80 rounded-lg p-1 border border-slate-700">
            {(['en', 'zh', 'vi', 'km'] as Language[]).map((l) => (

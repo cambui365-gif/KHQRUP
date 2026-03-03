@@ -31,9 +31,25 @@ body {
   50% { box-shadow: 0 0 40px rgba(34, 197, 94, 0.4); }
 }
 
+@keyframes scan {
+  0% { top: 0; }
+  50% { top: 100%; }
+  100% { top: 0; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
 .animate-fade-in { animation: fade-in 0.3s ease-out; }
 .animate-slide-up { animation: slide-up 0.3s ease-out; }
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+.animate-scan { animation: scan 3s linear infinite; }
+.shake-animation { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }

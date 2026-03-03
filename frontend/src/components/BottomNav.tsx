@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Language } from '../types';
 import { TRANSLATIONS } from '../constants';
-import { IconHome, IconQR, IconAssistant, IconEarn } from './Icons';
+import { IconHome, IconQR, IconEarn, IconAssistant } from './Icons';
 
 interface BottomNavProps {
   currentView: View;
