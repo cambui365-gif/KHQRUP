@@ -3,10 +3,10 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { JWTPayload } from '../types/index.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const JWT_SECRET = process.env.JWT_SECRET || 'demo-jwt-secret-khqrup';
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const DEMO_MODE = process.env.DEMO_MODE === 'true';
 
-// Extend Express Request
 declare global {
   namespace Express {
     interface Request {
@@ -17,7 +17,6 @@ declare global {
 
 /**
  * Validate Telegram WebApp initData
- * https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
  */
 export function validateTelegramInitData(initData: string): boolean {
   if (!BOT_TOKEN || !initData) return false;
@@ -45,16 +44,10 @@ export function validateTelegramInitData(initData: string): boolean {
   return calculatedHash === hash;
 }
 
-/**
- * Generate JWT from validated Telegram user
- */
 export function generateToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 }
 
-/**
- * Auth middleware - verify JWT
- */
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
@@ -71,9 +64,6 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   }
 }
 
-/**
- * Admin middleware - check isAdmin flag
- */
 export function adminMiddleware(req: Request, res: Response, next: NextFunction): void {
   if (!req.user?.isAdmin) {
     res.status(403).json({ success: false, error: 'Admin access required' });

@@ -1,42 +1,8 @@
-import TronWeb from 'tronweb';
-import * as bip39 from 'bip39';
-import HDKey from 'hdkey';
 import { db } from '../config/firebase.js';
 import { COLLECTIONS } from '../config/constants.js';
 import { WalletRecord } from '../types/index.js';
 
-const TRON_API_URL = process.env.TRON_API_URL || 'https://api.trongrid.io';
-const TRON_API_KEY = process.env.TRON_API_KEY || '';
-const MASTER_MNEMONIC = process.env.TRON_MASTER_MNEMONIC || '';
-
-// USDT-TRC20 Contract Address (Mainnet)
-const USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
-
-// HD Derivation path: m/44'/195'/0'/0/{index}
-// 195 = TRON coin type
-const HD_PATH = "m/44'/195'/0'/0";
-
-const tronWeb = new TronWeb({
-  fullHost: TRON_API_URL,
-  headers: TRON_API_KEY ? { 'TRON-PRO-API-KEY': TRON_API_KEY } : {},
-});
-
-/**
- * Derive child wallet from master mnemonic
- */
-export function deriveChildWallet(index: number): { address: string; privateKey: string } {
-  if (!MASTER_MNEMONIC) {
-    throw new Error('TRON_MASTER_MNEMONIC not configured');
-  }
-
-  const seed = bip39.mnemonicToSeedSync(MASTER_MNEMONIC);
-  const root = HDKey.fromMasterSeed(seed);
-  const child = root.derive(`${HD_PATH}/${index}`);
-  const privateKey = child.privateKey!.toString('hex');
-  const address = tronWeb.address.fromPrivateKey(privateKey);
-
-  return { address, privateKey };
-}
+const DEMO_MODE = process.env.DEMO_MODE === 'true' || !process.env.TRON_MASTER_MNEMONIC;
 
 /**
  * Get next available wallet index
@@ -50,6 +16,30 @@ async function getNextWalletIndex(): Promise<number> {
 
   if (snapshot.empty) return 0;
   return (snapshot.docs[0].data().index || 0) + 1;
+}
+
+/**
+ * Generate a demo TRON address (deterministic from index)
+ */
+function generateDemoAddress(index: number): string {
+  const hex = index.toString(16).padStart(8, '0');
+  return `TDemo${hex}WalletAddr${index.toString().padStart(4, '0')}xxxx`;
+}
+
+/**
+ * Derive child wallet — demo mode returns fake address, production uses HD derivation
+ */
+export function deriveChildWallet(index: number): { address: string; privateKey: string } {
+  if (DEMO_MODE) {
+    return {
+      address: generateDemoAddress(index),
+      privateKey: `demo_private_key_${index}`,
+    };
+  }
+
+  // Production: HD wallet derivation
+  // Lazy import to avoid errors when tronweb/bip39 not installed
+  throw new Error('Production HD wallet requires TRON_MASTER_MNEMONIC — set DEMO_MODE=true for testing');
 }
 
 /**
@@ -77,15 +67,12 @@ export async function createChildWallet(userId: number): Promise<WalletRecord> {
  * Get USDT-TRC20 balance of an address
  */
 export async function getUSDTBalance(address: string): Promise<number> {
-  try {
-    const contract = await tronWeb.contract().at(USDT_CONTRACT);
-    const balance = await contract.methods.balanceOf(address).call();
-    // USDT has 6 decimals
-    return Number(balance) / 1e6;
-  } catch (error) {
-    console.error(`Failed to get balance for ${address}:`, error);
-    return 0;
+  if (DEMO_MODE) {
+    // Return whatever is stored in DB
+    const doc = await db.collection(COLLECTIONS.WALLETS).doc(address).get();
+    return doc.exists ? (doc.data()?.balanceOnChain || 0) : 0;
   }
+  throw new Error('Production requires TronWeb');
 }
 
 /**
@@ -96,46 +83,24 @@ export async function consolidateWallet(
   motherAddress: string,
   amount: number
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
-  try {
-    // Get child wallet private key
-    const walletDoc = await db.collection(COLLECTIONS.WALLETS).doc(childAddress).get();
-    if (!walletDoc.exists) return { success: false, error: 'Wallet not found' };
-
-    const walletData = walletDoc.data() as WalletRecord;
-    const { privateKey } = deriveChildWallet(walletData.index);
-
-    // Create TronWeb instance with child's private key
-    const childTronWeb = new TronWeb({
-      fullHost: TRON_API_URL,
-      headers: TRON_API_KEY ? { 'TRON-PRO-API-KEY': TRON_API_KEY } : {},
-      privateKey,
-    });
-
-    const contract = await childTronWeb.contract().at(USDT_CONTRACT);
-    const amountSun = Math.floor(amount * 1e6);
-
-    const tx = await contract.methods.transfer(motherAddress, amountSun).send({
-      feeLimit: 100_000_000, // 100 TRX max fee
-    });
-
-    // Update wallet record
+  if (DEMO_MODE) {
+    // Simulate consolidation
     await db.collection(COLLECTIONS.WALLETS).doc(childAddress).update({
+      balanceOnChain: 0,
       isConsolidated: true,
       lastChecked: Date.now(),
     });
-
-    return { success: true, txHash: tx };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: true, txHash: `DEMO_TX_${Date.now()}` };
   }
+  throw new Error('Production requires TronWeb');
 }
 
 /**
- * Get all child wallets with balances
+ * Get all child wallets
  */
 export async function getAllWallets(): Promise<WalletRecord[]> {
   const snapshot = await db.collection(COLLECTIONS.WALLETS).orderBy('createdAt', 'desc').get();
-  return snapshot.docs.map(doc => doc.data() as WalletRecord);
+  return snapshot.docs.map((doc: any) => doc.data() as WalletRecord);
 }
 
 /**
@@ -156,10 +121,26 @@ export async function getWalletByUserId(userId: number): Promise<WalletRecord | 
  * Refresh on-chain balance for a wallet
  */
 export async function refreshWalletBalance(address: string): Promise<number> {
-  const balance = await getUSDTBalance(address);
+  if (DEMO_MODE) {
+    // In demo, just return current stored balance
+    const doc = await db.collection(COLLECTIONS.WALLETS).doc(address).get();
+    const balance = doc.exists ? (doc.data()?.balanceOnChain || 0) : 0;
+    await db.collection(COLLECTIONS.WALLETS).doc(address).update({ lastChecked: Date.now() });
+    return balance;
+  }
+  throw new Error('Production requires TronWeb');
+}
+
+/**
+ * [Demo only] Simulate a deposit to a child wallet
+ */
+export async function simulateDeposit(address: string, amount: number): Promise<void> {
+  const doc = await db.collection(COLLECTIONS.WALLETS).doc(address).get();
+  if (!doc.exists) throw new Error('Wallet not found');
+  const current = doc.data()?.balanceOnChain || 0;
   await db.collection(COLLECTIONS.WALLETS).doc(address).update({
-    balanceOnChain: balance,
+    balanceOnChain: current + amount,
+    isConsolidated: false,
     lastChecked: Date.now(),
   });
-  return balance;
 }

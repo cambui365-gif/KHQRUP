@@ -67,6 +67,12 @@ export const userApi = {
   getTransactions: (limit = 50) => request<any[]>(`/user/transactions?limit=${limit}`),
   claimInterest: () => request('/user/interest/claim', { method: 'POST' }),
   getConfig: () => request<any>('/user/config'),
+  requestDeposit: (amount: number) =>
+    request('/user/deposit', { method: 'POST', body: JSON.stringify({ amount }) }),
+  getSavingsPlans: () => request<any[]>('/user/savings/plans'),
+  getUserSavings: () => request<any[]>('/user/savings'),
+  subscribeToPlan: (planId: string, amount: number, autoRenew: boolean) =>
+    request('/user/savings/subscribe', { method: 'POST', body: JSON.stringify({ planId, amount, autoRenew }) }),
 };
 
 // Payment

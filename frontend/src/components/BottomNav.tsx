@@ -1,39 +1,39 @@
 import React from 'react';
-import { View } from '../types';
+import { View, Language } from '../types';
+import { TRANSLATIONS } from '../constants';
+import { IconHome, IconQR, IconAssistant, IconEarn } from './Icons';
 
-interface Props {
+interface BottomNavProps {
   currentView: View;
   setView: (view: View) => void;
+  lang: Language;
 }
 
-const tabs = [
-  { view: View.HOME, label: 'Wallet', icon: '💰' },
-  { view: View.KHQR, label: 'Scan QR', icon: '📷' },
-  { view: View.EARN, label: 'Earn', icon: '📈' },
-  { view: View.HISTORY, label: 'History', icon: '📋' },
-];
+export const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView, lang }) => {
+  const t = TRANSLATIONS[lang];
 
-export const BottomNav: React.FC<Props> = ({ currentView, setView }) => {
+  const navItems = [
+    { id: View.HOME, label: t.home, icon: <IconHome /> },
+    { id: View.KHQR, label: t.khqr, icon: <IconQR /> },
+    { id: View.EARN, label: t.earn, icon: <IconEarn /> },
+    { id: View.ASSISTANT, label: t.assistant, icon: <IconAssistant /> }
+  ];
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-dark-800/95 backdrop-blur-xl border-t border-dark-600 z-50">
-      <div className="max-w-xl mx-auto flex justify-around py-2 pb-safe">
-        {tabs.map(({ view, label, icon }) => {
-          const isActive = currentView === view;
-          return (
-            <button
-              key={view}
-              onClick={() => setView(view)}
-              className={`flex flex-col items-center py-1 px-4 rounded-xl transition-all ${
-                isActive
-                  ? 'text-primary-400'
-                  : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              <span className="text-xl">{icon}</span>
-              <span className="text-[10px] mt-0.5 font-medium">{label}</span>
-            </button>
-          );
-        })}
+    <nav className="fixed bottom-0 left-0 right-0 bg-[#0f172a]/95 backdrop-blur-lg border-t border-slate-800 pb-safe z-50">
+      <div className="flex justify-around items-center h-16">
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setView(item.id)}
+            className={`flex flex-col items-center justify-center w-full h-full transition-colors duration-200 ${
+              currentView === item.id ? 'text-blue-500' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {item.icon}
+            <span className="text-[10px] mt-1 font-medium">{item.label}</span>
+          </button>
+        ))}
       </div>
     </nav>
   );
